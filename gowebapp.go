@@ -15,6 +15,7 @@ import (
 	"app/shared/session"
 	"app/shared/view"
 	"app/shared/view/plugin"
+	"app/shared/websocket"
 )
 
 // *****************************************************************************
@@ -50,6 +51,9 @@ func main() {
 		plugin.NoEscape(),
 		plugin.PrettyTime(),
 		recaptcha.Plugin())
+
+	// Load web socket
+	websocket.NewPoolStart()
 
 	// Start the listener
 	server.Run(route.LoadHTTP(), route.LoadHTTPS(), config.Server)

@@ -1,6 +1,7 @@
 package route
 
 import (
+	"fmt"
 	"net/http"
 
 	"app/controller"
@@ -9,6 +10,7 @@ import (
 	"app/route/middleware/logrequest"
 	"app/route/middleware/pprofhandler"
 	"app/shared/session"
+	"app/shared/websocket"
 
 	"github.com/gorilla/context"
 	"github.com/josephspurrier/csrfbanana"
@@ -109,7 +111,11 @@ func routes() *httprouter.Router {
 	r.GET("/debug/pprof/*pprof", hr.Handler(alice.
 		New(acl.DisallowAnon).
 		ThenFunc(pprofhandler.Handler)))
-
+	r.GET("/ws", hr.Handler(alice.
+		New(acl.DisallowAnon).
+		ThenFunc(func(w http.ResponseWriter, r *http.Request) {
+			serveWs(websocket.MainPool, w, r)
+		})))
 	return r
 }
 
@@ -135,4 +141,25 @@ func middleware(h http.Handler) http.Handler {
 	h = context.ClearHandler(h)
 
 	return h
+}
+
+func serveWs(pool *websocket.Pool, w http.ResponseWriter, r *http.Request) {
+	sess := session.Instance(r)
+	// If user is not authenticated, don't allow them to connect socket
+	if sess.Values["id"] == nil {
+		return
+	}
+
+	conn, err := websocket.Upgrade(w, r)
+	if err != nil {
+		fmt.Fprintf(w, "%+v\n", err)
+	}
+
+	client := &websocket.Client{
+		ID:   fmt.Sprintf("%v", sess.Values["id"]),
+		Conn: conn,
+		Pool: pool,
+	}
+	pool.Register <- client
+	client.Read()
 }
