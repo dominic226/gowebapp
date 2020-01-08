@@ -82,6 +82,36 @@ func UserByEmail(email string) (User, error) {
 	return result, standardizeError(err)
 }
 
+// UserByID gets user information from id
+func UserByID(id string) (User, error) {
+	var err error
+
+	result := User{}
+
+	switch database.ReadConfig().Type {
+	case database.TypeMySQL:
+		err = database.SQL.Get(&result, "SELECT id, password, status_id, first_name FROM user WHERE id = ? LIMIT 1", id)
+	case database.TypeMongoDB:
+		if database.CheckConnection() {
+			session := database.Mongo.Copy()
+			defer session.Close()
+			c := session.DB(database.ReadConfig().MongoDB.Database).C("user")
+			err = c.Find(bson.M{"id": id}).One(&result)
+		} else {
+			err = ErrUnavailable
+		}
+	case database.TypeBolt:
+		err = database.View("user", id, &result)
+		if err != nil {
+			err = ErrNoResult
+		}
+	default:
+		err = ErrCode
+	}
+
+	return result, standardizeError(err)
+}
+
 // UserCreate creates user
 func UserCreate(firstName, lastName, email, password string) error {
 	var err error

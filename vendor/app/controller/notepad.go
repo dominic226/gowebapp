@@ -8,7 +8,6 @@ import (
 	"app/model"
 	"app/shared/session"
 	"app/shared/view"
-	"app/shared/websocket"
 
 	"github.com/gorilla/context"
 	"github.com/josephspurrier/csrfbanana"
@@ -76,12 +75,9 @@ func NotepadCreatePOST(w http.ResponseWriter, r *http.Request) {
 	} else {
 		sess.AddFlash(view.Flash{"Note added!", view.FlashSuccess})
 		sess.Save(r, w)
-		clients := websocket.MainPool.Clients
-		for client := range clients {
-			if err := client.Conn.WriteJSON(content); err != nil {
-				fmt.Println(err)
-				return
-			}
+		err = SendNotificationToAll(content)
+		if err != nil {
+			log.Println(err)
 		}
 		http.Redirect(w, r, "/notepad", http.StatusFound)
 		return
