@@ -2,15 +2,17 @@ package controller
 
 import (
 	"log"
+	"strconv"
 
 	"app/shared/websocket"
 )
 
 // SendNotificationByID send new notification to specific user
-func SendNotificationByID(id string, content interface{}) error {
+func SendNotificationByID(id uint32, content interface{}) error {
 	clients := websocket.MainPool.Clients
 	for client := range clients {
-		if client.ID == id {
+		ci, _ := strconv.Atoi(client.ID)
+		if ci == int(id) {
 			err := client.Conn.WriteJSON(content)
 			if err != nil {
 				log.Println(err)
